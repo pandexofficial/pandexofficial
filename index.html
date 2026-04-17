@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P4ND3X-OS // ItsP4ND3X</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0010;
+  --purple-deep: #1a0030;
+  --purple-mid: #3d0070;
+  --purple-bright: #9b00ff;
+  --purple-glow: #cc44ff;
+  --pink: #ff00cc;
+  --cyan: #00ffee;
+  --yellow: #ffe000;
+  --grid-color: rgba(155,0,255,0.15);
+  --text: #e0c0ff;
+  --text-dim: #8860aa;
+  --window-bg: rgba(10,0,25,0.92);
+  --window-border: #9b00ff;
+  --scanline: rgba(0,0,0,0.08);
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-display: 'Orbitron', sans-serif;
+  --font-vt: 'VT323', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── SCANLINES OVERLAY ─────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--scanline) 2px,
+    var(--scanline) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  animation: flicker 8s infinite;
+}
+
+@keyframes flicker {
+  0%,97%,100%{opacity:1}
+  98%{opacity:0.85}
+  99%{opacity:0.95}
+}
+
+/* ── LOADING SCREEN ─────────────────────────────────── */
+#boot {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  transition: opacity 0.8s ease;
+}
+#boot.fade-out { opacity: 0; pointer-events: none; }
+
+.boot-logo {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  font-weight: 900;
+  color: var(--purple-bright);
+  text-shadow:
+    0 0 10px var(--purple-bright),
+    0 0 40px var(--purple-bright),
+    0 0 100px var(--pink);
+  animation: pulse-logo 2s ease-in-out infinite;
+  letter-spacing: 0.08em;
+}
+
+@keyframes pulse-logo {
+  0%,100%{text-shadow:0 0 10px var(--purple-bright),0 0 40px var(--purple-bright),0 0 100px var(--pink);}
+  50%{text-shadow:0 0 20px var(--purple-glow),0 0 80px var(--purple-glow),0 0 160px var(--pink);}
+}
+
+.boot-sub {
+  font-family: var(--font-mono);
+  font-size: clamp(0.75rem, 2vw, 1rem);
+  color: var(--cyan);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.boot-bar-wrap {
+  width: min(360px, 80vw);
+  height: 4px;
+  background: var(--purple-deep);
+  border: 1px solid var(--purple-bright);
+  overflow: hidden;
+}
+.boot-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--purple-bright), var(--pink), var(--cyan));
+  box-shadow: 0 0 12px var(--purple-glow);
+  transition: width 0.05s linear;
+}
+
+.boot-log {
+  font-family: var(--font-mono);
+  font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+  color: var(--text-dim);
+  height: 80px;
+  overflow: hidden;
+  width: min(480px, 90vw);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.boot-log .entry { opacity: 0; animation: log-in 0.3s forwards; }
+@keyframes log-in { to { opacity:1; } }
+
+/* ── DESKTOP ─────────────────────────────────────────── */
+#desktop {
+  position: fixed; inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 1s ease 0.3s;
+}
+#desktop.visible { opacity: 1; }
+
+/* ── GRID BACKGROUND ──────────────────────────────────── */
+#grid-bg {
+  position: absolute; inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.grid-floor {
+  position: absolute;
+  bottom: 0; left: 50%;
+  width: 200vmax;
+  height: 80vh;
+  transform: translateX(-50%) perspective(600px) rotateX(60deg);
+  transform-origin: bottom center;
+  background:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: grid-move 6s linear infinite;
+}
+@keyframes grid-move {
+  from { background-position: 0 0; }
+  to   { background-position: 0 60px; }
+}
+.grid-sky {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 55vh;
+  background: radial-gradient(ellipse 80% 60% at 50% 100%,
+    rgba(155,0,255,0.35) 0%,
+    rgba(255,0,204,0.12) 40%,
+    transparent 70%
+  );
+}
+.sun {
+  position: absolute;
+  bottom: 42vh; left: 50%;
+  transform: translateX(-50%);
+  width: clamp(100px,20vw,220px);
+  height: clamp(100px,20vw,220px);
+  border-radius: 50%;
+  background: linear-gradient(to bottom, #ffe000 0%, #ff6600 40%, #ff00cc 70%, transparent 100%);
+  box-shadow: 0 0 60px #ff6600, 0 0 120px #ff00cc;
+  overflow: hidden;
+  z-index: 1;
+}
+.sun::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  background: var(--bg);
+}
+.sun-stripe { position: absolute; left: 0; right: 0; background: var(--bg); }
+.mountains {
+  position: absolute;
+  bottom: 38vh; left: 0; right: 0;
+  height: 15vh;
+  z-index: 2;
+}
+.mountains svg { width: 100%; height: 100%; }
+
+/* Neon glow stars */
+.stars {
+  position: absolute; inset: 0;
+  z-index: 0;
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle var(--d, 3s) ease-in-out infinite;
+}
+@keyframes twinkle {
+  0%,100%{opacity:0.2;transform:scale(1);}
+  50%{opacity:1;transform:scale(1.4);}
+}
+
+/* ── TASKBAR ─────────────────────────────────────────── */
+#taskbar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 40px;
+  background: rgba(10,0,25,0.85);
+  border-top: 1px solid var(--purple-bright);
+  box-shadow: 0 -4px 30px rgba(155,0,255,0.3);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+.tb-brand {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--purple-bright);
+  text-shadow: 0 0 8px var(--purple-bright);
+  padding: 4px 8px;
+  border: 1px solid var(--purple-bright);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.tb-brand:hover {
+  background: var(--purple-bright);
+  color: var(--bg);
+}
+.tb-sep { width: 1px; height: 24px; background: var(--purple-mid); }
+.tb-apps { display: flex; gap: 6px; flex: 1; overflow-x: auto; }
+.tb-app {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  padding: 3px 10px;
+  border: 1px solid var(--purple-mid);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tb-app:hover, .tb-app.active {
+  border-color: var(--purple-glow);
+  color: var(--purple-glow);
+  background: rgba(155,0,255,0.1);
+  text-shadow: 0 0 6px var(--purple-glow);
+}
+.tb-clock {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--cyan);
+  text-shadow: 0 0 6px var(--cyan);
+  white-space: nowrap;
+}
+
+/* ── DESKTOP ICONS ───────────────────────────────────── */
+#icons {
+  position: absolute;
+  top: 16px; left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 50;
+}
+.icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  width: 64px;
+}
+.icon-img {
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  border: 1px solid var(--purple-mid);
+  background: rgba(60,0,120,0.3);
+  transition: all 0.2s;
+}
+.icon:hover .icon-img {
+  border-color: var(--purple-glow);
+  box-shadow: 0 0 12px var(--purple-bright), inset 0 0 10px rgba(155,0,255,0.3);
+  transform: scale(1.08);
+}
+.icon-label {
+  font-size: 0.6rem;
+  color: var(--text);
+  text-align: center;
+  text-shadow: 0 1px 4px black;
+  line-height: 1.2;
+}
+
+/* ── WINDOWS ─────────────────────────────────────────── */
+.win {
+  position: absolute;
+  background: var(--window-bg);
+  border: 1px solid var(--window-border);
+  box-shadow: 0 0 30px rgba(155,0,255,0.3), inset 0 0 60px rgba(40,0,80,0.5);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  min-height: 200px;
+  z-index: 200;
+  animation: win-open 0.25s cubic-bezier(0.22,0.61,0.36,1);
+  overflow: hidden;
+}
+@keyframes win-open {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.win.hidden { display: none; }
+
+.win-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: linear-gradient(90deg, var(--purple-mid), transparent);
+  border-bottom: 1px solid var(--purple-bright);
+  cursor: grab;
+  flex-shrink: 0;
+}
+.win-bar:active { cursor: grabbing; }
+.win-dots { display: flex; gap: 5px; }
+.win-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+.win-dot:hover { filter: brightness(1.6); }
+.win-dot.close { background: #ff4455; }
+.win-dot.min   { background: #ffcc00; }
+.win-dot.max   { background: #44ff88; }
+.win-title {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  color: var(--purple-glow);
+  text-shadow: 0 0 8px var(--purple-glow);
+  letter-spacing: 0.1em;
+  flex: 1;
+}
+.win-body {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--purple-mid) transparent;
+}
+.win-resize {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 14px; height: 14px;
+  cursor: nwse-resize;
+  opacity: 0.5;
+}
+.win-resize::after {
+  content: '◢';
+  color: var(--purple-mid);
+  font-size: 12px;
+  position: absolute;
+  bottom: 2px; right: 2px;
+}
+
+/* ── ABOUT WINDOW ─────────────────────────────────────── */
+.about-avatar {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.avatar-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 2px solid var(--purple-bright);
+  box-shadow: 0 0 20px var(--purple-bright), inset 0 0 20px rgba(155,0,255,0.2);
+  font-size: 2.8rem;
+  animation: avatar-pulse 3s ease-in-out infinite;
+}
+@keyframes avatar-pulse {
+  0%,100%{box-shadow:0 0 20px var(--purple-bright),inset 0 0 20px rgba(155,0,255,0.2);}
+  50%{box-shadow:0 0 40px var(--purple-glow),0 0 80px var(--pink),inset 0 0 30px rgba(155,0,255,0.3);}
+}
+.about-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--purple-glow);
+  text-shadow: 0 0 16px var(--purple-glow);
+  text-align: center;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+.about-handle {
+  font-size: 0.75rem;
+  color: var(--cyan);
+  text-align: center;
+  margin-bottom: 16px;
+  text-shadow: 0 0 6px var(--cyan);
+}
+.about-bio {
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.about-tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.tag {
+  font-size: 0.65rem;
+  padding: 3px 8px;
+  border: 1px solid var(--purple-mid);
+  color: var(--purple-glow);
+  background: rgba(60,0,120,0.3);
+}
+
+/* ── TERMINAL WINDOW ──────────────────────────────────── */
+.term-out {
+  font-family: var(--font-vt);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--cyan);
+  margin-bottom: 10px;
+  min-height: 160px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--purple-mid) transparent;
+}
+.term-line { color: var(--text); margin-bottom: 2px; }
+.term-line .prompt { color: var(--purple-glow); }
+.term-line .out { color: var(--cyan); }
+.term-line .err { color: #ff4455; }
+.term-line .suc { color: #44ff88; }
+.term-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--purple-mid);
+  padding-top: 8px;
+}
+.term-prompt-label {
+  font-family: var(--font-vt);
+  font-size: 1.05rem;
+  color: var(--purple-glow);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.term-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-vt);
+  font-size: 1.05rem;
+  color: var(--cyan);
+  caret-color: var(--cyan);
+}
+
+/* ── SKILLS WINDOW ────────────────────────────────────── */
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+.skill-card {
+  border: 1px solid var(--purple-mid);
+  padding: 10px 8px;
+  text-align: center;
+  background: rgba(40,0,80,0.4);
+  transition: all 0.2s;
+  cursor: default;
+}
+.skill-card:hover {
+  border-color: var(--purple-glow);
+  box-shadow: 0 0 12px rgba(155,0,255,0.4);
+  transform: translateY(-2px);
+}
+.skill-icon { font-size: 1.6rem; margin-bottom: 4px; }
+.skill-name { font-size: 0.6rem; color: var(--text); }
+.skill-bar { height: 3px; background: var(--purple-deep); margin-top: 6px; overflow: hidden; }
+.skill-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--purple-bright), var(--pink));
+  box-shadow: 0 0 8px var(--purple-glow);
+  animation: fill-in 1.2s ease forwards;
+}
+@keyframes fill-in { from{width:0;} }
+
+/* ── GITHUB WINDOW ────────────────────────────────────── */
+.gh-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--purple-mid);
+}
+.gh-stat:last-child { border-bottom: none; }
+.gh-stat-icon { font-size: 1.2rem; width: 28px; text-align: center; }
+.gh-stat-label { font-size: 0.7rem; color: var(--text-dim); flex: 1; }
+.gh-stat-val { font-size: 0.75rem; color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
+.gh-btn {
+  display: block;
+  margin-top: 16px;
+  padding: 10px;
+  text-align: center;
+  border: 1px solid var(--purple-bright);
+  color: var(--purple-bright);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 8px var(--purple-bright);
+  box-shadow: 0 0 12px rgba(155,0,255,0.3);
+  transition: all 0.25s;
+  background: rgba(40,0,80,0.4);
+}
+.gh-btn:hover {
+  background: var(--purple-bright);
+  color: var(--bg);
+  text-shadow: none;
+  box-shadow: 0 0 30px var(--purple-bright);
+}
+
+/* ── MUSIC WINDOW ─────────────────────────────────────── */
+.music-vis {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 60px;
+  margin: 12px 0;
+}
+.vis-bar {
+  flex: 1;
+  background: linear-gradient(to top, var(--purple-bright), var(--pink));
+  box-shadow: 0 0 8px var(--purple-glow);
+  border-radius: 2px 2px 0 0;
+  animation: vis-bounce var(--d, 0.6s) ease-in-out infinite alternate;
+}
+@keyframes vis-bounce { from{height:6px;} to{height:var(--h,40px);} }
+.music-title { font-size: 0.75rem; color: var(--yellow); text-shadow: 0 0 8px var(--yellow); margin-bottom: 4px; }
+.music-sub { font-size: 0.65rem; color: var(--text-dim); }
+.music-controls { display: flex; gap: 8px; margin-top: 12px; }
+.music-btn {
+  flex: 1;
+  padding: 6px;
+  background: rgba(60,0,120,0.4);
+  border: 1px solid var(--purple-mid);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.music-btn:hover {
+  border-color: var(--purple-glow);
+  color: var(--purple-glow);
+  box-shadow: 0 0 10px rgba(155,0,255,0.3);
+}
+
+/* ── SHIMMERING TITLE ─────────────────────────────────── */
+.shimmer-text {
+  background: linear-gradient(90deg,
+    var(--purple-bright) 0%,
+    var(--pink) 25%,
+    var(--cyan) 50%,
+    var(--yellow) 75%,
+    var(--purple-bright) 100%
+  );
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+@keyframes shimmer { to { background-position: 300% center; } }
+
+/* ── NOTIFICATION ─────────────────────────────────────── */
+.notif {
+  position: fixed;
+  top: 16px; right: 16px;
+  background: var(--window-bg);
+  border: 1px solid var(--cyan);
+  box-shadow: 0 0 16px rgba(0,255,238,0.3);
+  padding: 10px 14px;
+  font-size: 0.7rem;
+  color: var(--cyan);
+  z-index: 9000;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s;
+  max-width: 240px;
+}
+.notif.show { opacity: 1; transform: translateX(0); }
+
+/* ── RESPONSIVE ────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .win { min-width: 260px !important; width: 95vw !important; left: 2.5vw !important; }
+  #icons { display: none; }
+  .tb-apps { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══ BOOT SCREEN ══ -->
+<div id="boot">
+  <div class="boot-logo">P4ND3X-OS</div>
+  <div class="boot-sub">v2.077 // Retrowave Edition</div>
+  <div class="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+  <div class="boot-log" id="boot-log"></div>
+</div>
+
+<!-- ══ DESKTOP ══ -->
+<div id="desktop">
+
+  <!-- Background -->
+  <div id="grid-bg">
+    <div class="stars" id="stars"></div>
+    <div class="grid-sky"></div>
+    <div class="sun" id="sun"></div>
+    <div class="mountains">
+      <svg viewBox="0 0 1200 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3d0070"/>
+            <stop offset="100%" stop-color="#0a0010"/>
+          </linearGradient>
+        </defs>
+        <polygon fill="url(#mtn)" points="0,120 80,40 160,80 280,10 400,70 500,20 620,90 740,5 860,75 980,30 1100,65 1200,25 1200,120"/>
+        <polygon fill="rgba(155,0,255,0.15)" points="0,120 80,40 160,80 280,10 400,70 500,20 620,90 740,5 860,75 980,30 1100,65 1200,25 1200,120"/>
+      </svg>
+    </div>
+    <div class="grid-floor"></div>
+  </div>
+
+  <!-- Desktop Icons -->
+  <div id="icons">
+    <div class="icon" onclick="openWin('about')">
+      <div class="icon-img">🧬</div>
+      <div class="icon-label">About.exe</div>
+    </div>
+    <div class="icon" onclick="openWin('terminal')">
+      <div class="icon-img">💻</div>
+      <div class="icon-label">Terminal</div>
+    </div>
+    <div class="icon" onclick="openWin('skills')">
+      <div class="icon-img">⚡</div>
+      <div class="icon-label">Skills.db</div>
+    </div>
+    <div class="icon" onclick="openWin('github')">
+      <div class="icon-img">🐙</div>
+      <div class="icon-label">GitHub</div>
+    </div>
+    <div class="icon" onclick="openWin('music')">
+      <div class="icon-img">🎵</div>
+      <div class="icon-label">Music.wav</div>
+    </div>
+  </div>
+
+  <!-- ── ABOUT WINDOW ── -->
+  <div class="win" id="win-about" style="width:320px;top:60px;left:120px;">
+    <div class="win-bar" data-win="about">
+      <div class="win-dots">
+        <div class="win-dot close" onclick="closeWin('about')"></div>
+        <div class="win-dot min"   onclick="minimizeWin('about')"></div>
+        <div class="win-dot max"   onclick="maximizeWin('about')"></div>
+      </div>
+      <div class="win-title">ABOUT // ItsP4ND3X</div>
+    </div>
+    <div class="win-body">
+      <div class="about-avatar">
+        <div class="avatar-ring">🐼</div>
+      </div>
+      <div class="about-name shimmer-text">ItsP4ND3X</div>
+      <div class="about-handle">@pandexofficial</div>
+      <div class="about-bio">
+        Welcome to my cyber-space 👾<br><br>
+        Developer. Creator. Retrowave enthusiast living in the neon-lit grid of the digital frontier.<br><br>
+        I build things that glow — code, projects, and vibes from the depths of the purple void.
+      </div>
+      <div class="about-tags">
+        <span class="tag">💻 Developer</span>
+        <span class="tag">🎮 Gamer</span>
+        <span class="tag">🌙 Night Coder</span>
+        <span class="tag">🎵 Synthwave</span>
+        <span class="tag">🐼 P4ND3X</span>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- ── TERMINAL WINDOW ── -->
+  <div class="win" id="win-terminal" style="width:400px;top:80px;left:460px;">
+    <div class="win-bar" data-win="terminal">
+      <div class="win-dots">
+        <div class="win-dot close" onclick="closeWin('terminal')"></div>
+        <div class="win-dot min"   onclick="minimizeWin('terminal')"></div>
+        <div class="win-dot max"   onclick="maximizeWin('terminal')"></div>
+      </div>
+      <div class="win-title">P4ND3X-TERMINAL v1.0</div>
+    </div>
+    <div class="win-body">
+      <div class="term-out" id="term-out"></div>
+      <div class="term-input-row">
+        <span class="term-prompt-label">P4ND3X@os:~$</span>
+        <input class="term-input" id="term-input" type="text" autocomplete="off" placeholder="type 'help'" spellcheck="false"/>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- ── SKILLS WINDOW ── -->
+  <div class="win hidden" id="win-skills" style="width:340px;top:300px;left:120px;">
+    <div class="win-bar" data-win="skills">
+      <div class="win-dots">
+        <div class="win-dot close" onclick="closeWin('skills')"></div>
+        <div class="win-dot min"   onclick="minimizeWin('skills')"></div>
+        <div class="win-dot max"   onclick="maximizeWin('skills')"></div>
+      </div>
+      <div class="win-title">SKILLS.DB // LOADED</div>
+    </div>
+    <div class="win-body">
+      <div class="skills-grid">
+        <div class="skill-card"><div class="skill-icon">🌐</div><div class="skill-name">HTML/CSS</div><div class="skill-bar"><div class="skill-fill" style="width:92%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">⚡</div><div class="skill-name">JavaScript</div><div class="skill-bar"><div class="skill-fill" style="width:88%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">🐍</div><div class="skill-name">Python</div><div class="skill-bar"><div class="skill-fill" style="width:80%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">⚛️</div><div class="skill-name">React</div><div class="skill-bar"><div class="skill-fill" style="width:75%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">🎨</div><div class="skill-name">Design</div><div class="skill-bar"><div class="skill-fill" style="width:85%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">🐙</div><div class="skill-name">Git</div><div class="skill-bar"><div class="skill-fill" style="width:90%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">🛡️</div><div class="skill-name">Security</div><div class="skill-bar"><div class="skill-fill" style="width:70%"></div></div></div>
+        <div class="skill-card"><div class="skill-icon">🎵</div><div class="skill-name">Synthwave</div><div class="skill-bar"><div class="skill-fill" style="width:99%"></div></div></div>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- ── GITHUB WINDOW ── -->
+  <div class="win hidden" id="win-github" style="width:280px;top:120px;left:880px;">
+    <div class="win-bar" data-win="github">
+      <div class="win-dots">
+        <div class="win-dot close" onclick="closeWin('github')"></div>
+        <div class="win-dot min"   onclick="minimizeWin('github')"></div>
+        <div class="win-dot max"   onclick="maximizeWin('github')"></div>
+      </div>
+      <div class="win-title">GITHUB // PROFILE</div>
+    </div>
+    <div class="win-body">
+      <div class="gh-stat">
+        <div class="gh-stat-icon">🐙</div>
+        <div class="gh-stat-label">Username</div>
+        <div class="gh-stat-val">pandexofficial</div>
+      </div>
+      <div class="gh-stat">
+        <div class="gh-stat-icon">📁</div>
+        <div class="gh-stat-label">Repositories</div>
+        <div class="gh-stat-val">Loading...</div>
+      </div>
+      <div class="gh-stat">
+        <div class="gh-stat-icon">⭐</div>
+        <div class="gh-stat-label">Status</div>
+        <div class="gh-stat-val" style="color:var(--yellow)">Active</div>
+      </div>
+      <div class="gh-stat">
+        <div class="gh-stat-icon">🌐</div>
+        <div class="gh-stat-label">Platform</div>
+        <div class="gh-stat-val">GitHub</div>
+      </div>
+      <div class="gh-stat">
+        <div class="gh-stat-icon">🔮</div>
+        <div class="gh-stat-label">OS</div>
+        <div class="gh-stat-val">P4ND3X-OS</div>
+      </div>
+      <a class="gh-btn" href="https://github.com/pandexofficial" target="_blank" rel="noopener">
+        ◈ VISIT PROFILE ◈
+      </a>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- ── MUSIC WINDOW ── -->
+  <div class="win hidden" id="win-music" style="width:280px;top:340px;left:880px;">
+    <div class="win-bar" data-win="music">
+      <div class="win-dots">
+        <div class="win-dot close" onclick="closeWin('music')"></div>
+        <div class="win-dot min"   onclick="minimizeWin('music')"></div>
+        <div class="win-dot max"   onclick="maximizeWin('music')"></div>
+      </div>
+      <div class="win-title">SYNTH.PLAYER // BGM</div>
+    </div>
+    <div class="win-body">
+      <div class="music-title">◈ Neon Midnight ◈</div>
+      <div class="music-sub">P4ND3X RETROWAVE RADIO</div>
+      <div class="music-vis" id="music-vis"></div>
+      <div class="music-controls">
+        <div class="music-btn" onclick="playBGM()">▶ PLAY</div>
+        <div class="music-btn" onclick="stopBGM()">■ STOP</div>
+        <div class="music-btn" onclick="cycleBeat()">⟳ BEAT</div>
+      </div>
+    </div>
+    <div class="win-resize"></div>
+  </div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <div class="tb-brand" onclick="openWin('about')">⬛ P4ND3X-OS</div>
+    <div class="tb-sep"></div>
+    <div class="tb-apps">
+      <div class="tb-app" id="tb-about"    onclick="toggleWin('about')">🧬 About</div>
+      <div class="tb-app" id="tb-terminal" onclick="toggleWin('terminal')">💻 Terminal</div>
+      <div class="tb-app" id="tb-skills"   onclick="toggleWin('skills')">⚡ Skills</div>
+      <div class="tb-app" id="tb-github"   onclick="toggleWin('github')">🐙 GitHub</div>
+      <div class="tb-app" id="tb-music"    onclick="toggleWin('music')">🎵 Music</div>
+    </div>
+    <div class="tb-clock" id="tb-clock">00:00:00</div>
+  </div>
+
+  <!-- Notification -->
+  <div class="notif" id="notif"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//   P4ND3X-OS  — MAIN SCRIPT
+// ═══════════════════════════════════════
+
+/* ── STARS ── */
+(function(){
+  const s = document.getElementById('stars');
+  for(let i=0;i<80;i++){
+    const el=document.createElement('div');
+    el.className='star';
+    const sz=Math.random()*2.5+0.5;
+    el.style.cssText=`
+      width:${sz}px;height:${sz}px;
+      top:${Math.random()*55}%;
+      left:${Math.random()*100}%;
+      --d:${(Math.random()*3+1.5).toFixed(2)}s;
+      animation-delay:${(Math.random()*4).toFixed(2)}s;
+      opacity:${Math.random()*0.6+0.2};
+    `;
+    s.appendChild(el);
+  }
+})();
+
+/* ── SUN STRIPES ── */
+(function(){
+  const sun=document.getElementById('sun');
+  const stripes=[40,50,58,65,71,76,80,84];
+  stripes.forEach((top,i)=>{
+    const d=document.createElement('div');
+    d.className='sun-stripe';
+    const h=Math.pow(1.4,i)*2;
+    d.style.cssText=`top:${top}%;height:${h}px;`;
+    sun.appendChild(d);
+  });
+})();
+
+/* ── MUSIC VIS ── */
+(function(){
+  const v=document.getElementById('music-vis');
+  for(let i=0;i<16;i++){
+    const b=document.createElement('div');
+    b.className='vis-bar';
+    const h=Math.floor(Math.random()*50+10);
+    b.style.cssText=`--h:${h}px;--d:${(Math.random()*0.4+0.3).toFixed(2)}s;animation-delay:${(Math.random()*0.5).toFixed(2)}s;`;
+    v.appendChild(b);
+  }
+})();
+
+/* ── CLOCK ── */
+function tick(){
+  const n=new Date();
+  document.getElementById('tb-clock').textContent=
+    n.toLocaleTimeString('en-US',{hour12:false});
+}
+setInterval(tick,1000);tick();
+
+/* ── NOTIFICATION ── */
+function notify(msg){
+  const n=document.getElementById('notif');
+  n.textContent=msg;
+  n.classList.add('show');
+  clearTimeout(n._t);
+  n._t=setTimeout(()=>n.classList.remove('show'),3000);
+}
+
+/* ── WINDOW MANAGEMENT ── */
+let topZ=200;
+function bringToFront(id){
+  document.getElementById('win-'+id).style.zIndex=++topZ;
+}
+function openWin(id){
+  const w=document.getElementById('win-'+id);
+  w.classList.remove('hidden');
+  bringToFront(id);
+  document.getElementById('tb-'+id)?.classList.add('active');
+  playClick();
+}
+function closeWin(id){
+  document.getElementById('win-'+id).classList.add('hidden');
+  document.getElementById('tb-'+id)?.classList.remove('active');
+  playClick();
+}
+function minimizeWin(id){ closeWin(id); }
+function maximizeWin(id){
+  const w=document.getElementById('win-'+id);
+  if(w.dataset.maximized){
+    Object.assign(w.style,JSON.parse(w.dataset.prev));
+    delete w.dataset.maximized;
+    delete w.dataset.prev;
+  } else {
+    w.dataset.prev=JSON.stringify({width:w.style.width,height:w.style.height,top:w.style.top,left:w.style.left});
+    w.dataset.maximized='1';
+    Object.assign(w.style,{width:'100vw',height:'calc(100vh - 40px)',top:'0',left:'0'});
+  }
+  bringToFront(id);
+}
+function toggleWin(id){
+  const w=document.getElementById('win-'+id);
+  if(w.classList.contains('hidden')) openWin(id);
+  else closeWin(id);
+}
+
+/* ── DRAG ── */
+document.querySelectorAll('.win-bar').forEach(bar=>{
+  const id=bar.dataset.win;
+  let ox,oy,dragging=false;
+  bar.addEventListener('mousedown',e=>{
+    if(e.target.classList.contains('win-dot'))return;
+    dragging=true;
+    const w=document.getElementById('win-'+id);
+    ox=e.clientX-w.offsetLeft;
+    oy=e.clientY-w.offsetTop;
+    bringToFront(id);
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const w=document.getElementById('win-'+id);
+    w.style.left=(e.clientX-ox)+'px';
+    w.style.top=Math.max(0,e.clientY-oy)+'px';
+  });
+  document.addEventListener('mouseup',()=>{ dragging=false; });
+  // Touch drag
+  bar.addEventListener('touchstart',e=>{
+    if(e.target.classList.contains('win-dot'))return;
+    dragging=true;
+    const t=e.touches[0];
+    const w=document.getElementById('win-'+id);
+    ox=t.clientX-w.offsetLeft;
+    oy=t.clientY-w.offsetTop;
+    bringToFront(id);
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    const t=e.touches[0];
+    const w=document.getElementById('win-'+id);
+    w.style.left=(t.clientX-ox)+'px';
+    w.style.top=Math.max(0,t.clientY-oy)+'px';
+  },{passive:true});
+  document.addEventListener('touchend',()=>{ dragging=false; });
+});
+
+/* ── RESIZE ── */
+document.querySelectorAll('.win-resize').forEach(handle=>{
+  const win=handle.closest('.win');
+  let resizing=false,sx,sy,sw,sh;
+  handle.addEventListener('mousedown',e=>{
+    resizing=true;
+    sx=e.clientX; sy=e.clientY;
+    sw=win.offsetWidth; sh=win.offsetHeight;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!resizing)return;
+    win.style.width=Math.max(260,sw+(e.clientX-sx))+'px';
+    win.style.height=Math.max(180,sh+(e.clientY-sy))+'px';
+  });
+  document.addEventListener('mouseup',()=>{ resizing=false; });
+});
+
+/* ── AUDIO ── */
+let audioCtx;
+function getAudio(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+
+function playClick(){
+  try{
+    const ctx=getAudio();
+    const osc=ctx.createOscillator();
+    const g=ctx.createGain();
+    osc.connect(g);g.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880,ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440,ctx.currentTime+0.06);
+    g.gain.setValueAtTime(0.1,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.08);
+    osc.start();osc.stop(ctx.currentTime+0.08);
+  }catch(e){}
+}
+
+function playTypeSound(){
+  try{
+    const ctx=getAudio();
+    const osc=ctx.createOscillator();
+    const g=ctx.createGain();
+    osc.type='square';
+    osc.connect(g);g.connect(ctx.destination);
+    osc.frequency.setValueAtTime(220+Math.random()*440,ctx.currentTime);
+    g.gain.setValueAtTime(0.04,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.04);
+    osc.start();osc.stop(ctx.currentTime+0.04);
+  }catch(e){}
+}
+
+/* ── BGM (Web Audio synth) ── */
+let bgmNodes=[];let bgmPlaying=false;
+let beatMode=0;
+const beats=[
+  {bpm:90, notes:[110,138,165,220]},
+  {bpm:120, notes:[130,174,196,261]},
+  {bpm:75,  notes:[82,110,130,164]}
+];
+let bgmInterval;
+
+function playBGM(){
+  if(bgmPlaying) return;
+  bgmPlaying=true;
+  scheduleBeat();
+  notify('▶ BGM: Neon Midnight — PLAYING');
+}
+function stopBGM(){
+  bgmPlaying=false;
+  clearTimeout(bgmInterval);
+  bgmNodes.forEach(n=>{ try{n.stop();}catch(e){} });
+  bgmNodes=[];
+  notify('■ BGM: STOPPED');
+}
+function cycleBeat(){
+  beatMode=(beatMode+1)%beats.length;
+  notify(`⟳ BEAT MODE ${beatMode+1} // ACTIVATED`);
+  if(bgmPlaying){ stopBGM(); setTimeout(playBGM,100); }
+}
+function scheduleBeat(){
+  if(!bgmPlaying) return;
+  const ctx=getAudio();
+  const b=beats[beatMode];
+  const note=b.notes[Math.floor(Math.random()*b.notes.length)];
+  const osc=ctx.createOscillator();
+  const g=ctx.createGain();
+  osc.type='sawtooth';
+  osc.connect(g);g.connect(ctx.destination);
+  osc.frequency.setValueAtTime(note,ctx.currentTime);
+  g.gain.setValueAtTime(0.08,ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);
+  osc.start();osc.stop(ctx.currentTime+0.35);
+  bgmNodes.push(osc);
+  // Bass kick
+  const kick=ctx.createOscillator();
+  const kg=ctx.createGain();
+  kick.type='sine';
+  kick.connect(kg);kg.connect(ctx.destination);
+  kick.frequency.setValueAtTime(80,ctx.currentTime);
+  kick.frequency.exponentialRampToValueAtTime(20,ctx.currentTime+0.2);
+  kg.gain.setValueAtTime(0.15,ctx.currentTime);
+  kg.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.2);
+  kick.start();kick.stop(ctx.currentTime+0.25);
+  bgmNodes.push(kick);
+  const delay=60000/b.bpm/2;
+  bgmInterval=setTimeout(scheduleBeat,delay);
+}
+
+/* ── TERMINAL ── */
+const termOut=document.getElementById('term-out');
+const termIn=document.getElementById('term-input');
+
+const cmds={
+  help(){
+    return [
+      '<span style="color:var(--yellow)">P4ND3X-OS TERMINAL v1.0 // AVAILABLE COMMANDS:</span>',
+      '<span class="suc">about</span>    — open about window',
+      '<span class="suc">skills</span>   — open skills database',
+      '<span class="suc">github</span>   — open github profile',
+      '<span class="suc">music</span>    — open music player',
+      '<span class="suc">play</span>     — start BGM',
+      '<span class="suc">stop</span>     — stop BGM',
+      '<span class="suc">clear</span>    — clear terminal',
+      '<span class="suc">date</span>     — show current time',
+      '<span class="suc">whoami</span>   — identity check',
+      '<span class="suc">hack</span>     — initiate hack sequence',
+      '<span class="suc">matrix</span>  — go deeper',
+      '<span class="suc">neo</span>      — ???',
+    ];
+  },
+  about(){ openWin('about'); return ['<span class="suc">Opening About.exe...</span>']; },
+  skills(){ openWin('skills'); return ['<span class="suc">Loading SKILLS.DB...</span>']; },
+  github(){ openWin('github'); window.open('https://github.com/pandexofficial','_blank'); return ['<span class="suc">Launching GitHub profile...</span>']; },
+  music(){ openWin('music'); return ['<span class="suc">Opening SYNTH.PLAYER...</span>']; },
+  play(){ playBGM(); return ['<span class="suc">▶ BGM initiated...</span>']; },
+  stop(){ stopBGM(); return ['<span class="suc">■ BGM stopped.</span>']; },
+  clear(){ termOut.innerHTML=''; return []; },
+  date(){ return ['<span class="suc">'+new Date().toLocaleString()+'</span>']; },
+  whoami(){ return [
+    '<span class="suc">USER: ItsP4ND3X</span>',
+    '<span class="suc">HOST: P4ND3X-OS</span>',
+    '<span class="suc">ROLE: Developer / Creator</span>',
+    '<span class="suc">CLEARANCE: LEVEL ∞</span>'
+  ];},
+  hack(){
+    return [
+      '<span class="err">INITIATING HACK SEQUENCE...</span>',
+      '<span style="color:var(--yellow)">Bypassing firewall... ████████ 100%</span>',
+      '<span style="color:var(--yellow)">Decrypting mainframe... ████████ 100%</span>',
+      '<span class="suc">ACCESS GRANTED. Welcome, P4ND3X.</span>',
+      '<span class="err">Just kidding. This is just a cool terminal 😄</span>'
+    ];
+  },
+  matrix(){
+    return [
+      '<span style="color:#44ff88">Wake up, Neo...</span>',
+      '<span style="color:#44ff88">The Matrix has you...</span>',
+      '<span style="color:#44ff88">Follow the white rabbit 🐇</span>'
+    ];
+  },
+  neo(){
+    return [
+      '<span style="color:var(--yellow)">You took the red pill.</span>',
+      '<span style="color:var(--purple-glow)">Reality is now: P4ND3X-OS</span>'
+    ];
+  }
+};
+
+function termPrint(prompt, lines){
+  const row=document.createElement('div');
+  row.className='term-line';
+  row.innerHTML=`<span class="prompt">P4ND3X@os:~$</span> ${escHtml(prompt)}`;
+  termOut.appendChild(row);
+  lines.forEach(l=>{
+    const r=document.createElement('div');
+    r.className='term-line';
+    r.innerHTML=l;
+    termOut.appendChild(r);
+  });
+  termOut.scrollTop=termOut.scrollHeight;
+}
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+termIn.addEventListener('keydown',e=>{
+  playTypeSound();
+  if(e.key==='Enter'){
+    const val=termIn.value.trim();
+    termIn.value='';
+    if(!val)return;
+    const fn=cmds[val.toLowerCase()];
+    if(fn) termPrint(val,fn());
+    else termPrint(val,[`<span class="err">Command not found: ${escHtml(val)}. Type 'help'.</span>`]);
+  }
+});
+
+// Initial terminal message
+setTimeout(()=>{
+  termPrint('whoami',cmds.whoami());
+},600);
+
+/* ── BOOT SEQUENCE ── */
+const bootLogs=[
+  '[OK] Initializing P4ND3X-OS kernel...',
+  '[OK] Loading retrowave subsystem...',
+  '[OK] Mounting /neon filesystem...',
+  '[OK] Calibrating synth oscillators...',
+  '[OK] Connecting to GitHub API...',
+  '[OK] Loading user profile: ItsP4ND3X...',
+  '[OK] Scanning for hostile AIs... clear.',
+  '[OK] Applying purple haze overlay...',
+  '[OK] Starting desktop environment...',
+  '[OK] P4ND3X-OS ready. Welcome back.'
+];
+
+(async function boot(){
+  const bar=document.getElementById('boot-bar');
+  const log=document.getElementById('boot-log');
+  for(let i=0;i<bootLogs.length;i++){
+    await new Promise(r=>setTimeout(r,200+Math.random()*180));
+    const e=document.createElement('div');
+    e.className='entry';
+    e.textContent=bootLogs[i];
+    log.appendChild(e);
+    bar.style.width=((i+1)/bootLogs.length*100)+'%';
+    if(log.children.length>4) log.children[0].remove();
+  }
+  await new Promise(r=>setTimeout(r,600));
+  const boot=document.getElementById('boot');
+  boot.classList.add('fade-out');
+  const desk=document.getElementById('desktop');
+  desk.classList.add('visible');
+  setTimeout(()=>{
+    boot.style.display='none';
+    openWin('about');
+    openWin('terminal');
+    setTimeout(()=>notify('🎮 Welcome to P4ND3X-OS!'),500);
+  },900);
+})();
+</script>
+</body>
+</html>
